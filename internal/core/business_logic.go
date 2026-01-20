@@ -15,11 +15,11 @@ type ResultValidator struct {
 
 // ReferenceRange defines the normal range for a specific test.
 type ReferenceRange struct {
-	TestCode  string
-	TestName  string
-	Unit      string
-	MinValue  float64
-	MaxValue  float64
+	TestCode    string
+	TestName    string
+	Unit        string
+	MinValue    float64
+	MaxValue    float64
 	CriticalMin float64 // Below this is critical
 	CriticalMax float64 // Above this is critical
 }
@@ -75,17 +75,6 @@ type PetService struct {
 	// In production, this would have repository dependencies
 }
 
-// Pet represents a pet in the system.
-type Pet struct {
-	ID       string
-	Name     string
-	Species  string
-	Breed    string
-	Age      int
-	Weight   float64
-	OwnerID  string
-}
-
 // NewPetService creates a new pet service.
 func NewPetService() *PetService {
 	return &PetService{}
@@ -101,7 +90,7 @@ func (ps *PetService) ValidatePetData(pet *Pet) error {
 		return fmt.Errorf("pet species is required")
 	}
 
-	if pet.OwnerID == "" {
+	if pet.OwnerID <= 0 {
 		return fmt.Errorf("owner ID is required")
 	}
 
@@ -109,20 +98,7 @@ func (ps *PetService) ValidatePetData(pet *Pet) error {
 		return fmt.Errorf("pet age cannot be negative")
 	}
 
-	if pet.Weight <= 0 {
-		return fmt.Errorf("pet weight must be positive")
-	}
-
 	return nil
-}
-
-// Owner represents a pet owner in the system.
-type Owner struct {
-	ID       string
-	Name     string
-	Email    string
-	Phone    string
-	Address  string
 }
 
 // OwnerService handles owner-related business logic.
@@ -139,8 +115,8 @@ func (os *OwnerService) ValidateOwnerData(owner *Owner) error {
 		return fmt.Errorf("owner name is required")
 	}
 
-	if owner.Email == "" && owner.Phone == "" {
-		return fmt.Errorf("email or phone is required")
+	if owner.Phone == "" {
+		return fmt.Errorf("phone is required")
 	}
 
 	return nil
