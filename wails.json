@@ -1,0 +1,17 @@
+{
+  "name": "Veta LIS",
+  "outputType": "desktop",
+  "frontend": {
+    "dir": "frontend",
+    "build": "npm run build",
+    "install": "npm install"
+  },
+  "wailsjs": "frontend/wailsjs",
+  "build": {
+    "appType": "desktop",
+    "architecture": "amd64",
+    "windowsConsole": false,
+    "obfuscated": false,
+    "garbleargs": ""
+  }
+}

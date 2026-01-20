@@ -1,0 +1,42 @@
+database:
+  host: localhost
+  port: 5432
+  user: veta_user
+  password: "${DB_PASSWORD}"  # Use environment variable in production
+  database: veta_lis
+  ssl_mode: disable
+
+server:
+  port: 3000
+  host: localhost
+
+machines:
+  - id: machine_1
+    type: HA3100
+    enabled: true
+    connection_type: SERIAL
+    port: COM3
+    baud_rate: 9600
+    timeout: 30
+    retry_attempts: 3
+    parse_format: ASTM
+
+  - id: machine_2
+    type: Scitek
+    enabled: true
+    connection_type: TCP
+    port: "192.168.1.100:5000"
+    baud_rate: 0  # Not used for TCP
+    timeout: 30
+    retry_attempts: 3
+    parse_format: HL7
+
+  - id: machine_3
+    type: Mindray
+    enabled: false
+    connection_type: TCP
+    port: "192.168.1.101:5000"
+    baud_rate: 0
+    timeout: 30
+    retry_attempts: 3
+    parse_format: HL7
