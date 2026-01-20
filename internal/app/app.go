@@ -2,250 +2,286 @@ package app
 
 import (
 	"context"
-	"sync"
+	"fmt"
+	"strconv"
 
-	"veta-lis/internal/config"
 	"veta-lis/internal/core"
-	"veta-lis/internal/drivers"
-	"veta-lis/internal/drivers/ha3100"
-	"veta-lis/internal/drivers/scitek"
+	"veta-lis/internal/service"
 )
 
-// App is the main Wails application struct that will be bound to the frontend.
+// App is the main Wails application struct that bridges backend logic to React frontend.
+// It holds the service layer and context for the application lifecycle.
 type App struct {
-	ctx                context.Context
-	cancel             context.CancelFunc
-	configManager      *config.ConfigManager
-	resultValidator    *core.ResultValidator
-	petService         *core.PetService
-	ownerService       *core.OwnerService
-	driverFactory      *drivers.DriverFactory
-	activeDrivers      map[string]drivers.MachineDriver
-	activeDriversMutex sync.RWMutex
-	resultChannel      chan *drivers.LabResult
+	ctx        context.Context
+	labService *service.LabService
 }
 
-// NewApp creates a new Wails application instance.
-func NewApp(configPath string) *App {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Initialize driver factory
-	factory := drivers.NewDriverFactory()
-	factory.Register("HA3100", ha3100.NewHA3100Driver)
-	factory.Register("Scitek", scitek.NewScitekDriver)
-
-	app := &App{
-		ctx:            ctx,
-		cancel:         cancel,
-		configManager:  config.NewConfigManager(configPath),
-		resultValidator: core.NewResultValidator(),
-		petService:     core.NewPetService(),
-		ownerService:   core.NewOwnerService(),
-		driverFactory:  factory,
-		activeDrivers:  make(map[string]drivers.MachineDriver),
-		resultChannel:  make(chan *drivers.LabResult, 100),
+// NewApp creates a new Wails application instance with service layer injection.
+// The service parameter provides all business logic and database operations.
+//
+// Parameters:
+//   - labService: The service layer instance that handles all business logic
+//
+// Returns:
+//   - Configured App instance ready to be bound to Wails
+func NewApp(labService *service.LabService) *App {
+	return &App{
+		labService: labService,
 	}
-
-	return app
 }
 
-// Startup is called at application startup.
+// Startup is called when the Wails application starts.
+// It receives and stores the application context for use in service calls.
+//
+// This is a Wails lifecycle method - do not call directly.
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Load configuration
-	if err := a.configManager.Load(); err != nil {
-		// Log error but don't crash
-		println("Error loading config:", err)
+	// Pass context to service layer for Wails event emission
+	if a.labService != nil {
+		a.labService.SetContext(ctx)
 	}
 
-	// Initialize reference ranges
-	a.initializeReferenceRanges()
+	println("🚀 Veta LIS Application Started")
 }
 
-// Shutdown is called at application shutdown.
+// Shutdown is called when the Wails application is closing.
+// Perform cleanup operations here.
+//
+// This is a Wails lifecycle method - do not call directly.
 func (a *App) Shutdown(ctx context.Context) {
-	a.cancel()
-	// Disconnect all active drivers
-	for _, driver := range a.activeDrivers {
-		_ = driver.Disconnect(ctx)
-	}
+	println("🛑 Veta LIS Application Shutting Down")
+	// Additional cleanup can be added here
 }
 
-// ConnectMachine connects to a lab machine.
-// Called from the frontend via Wails binding.
-func (a *App) ConnectMachine(machineID string) (string, error) {
-	// Get machine configuration
-	machineConfig, err := a.configManager.GetMachineByID(machineID)
+// ============================================================================
+// FRONTEND EXPOSED METHODS - React can call these via Wails bindings
+// ============================================================================
+
+// RegisterPatient registers a new patient (pet) and owner in the system.
+// This method is exposed to the React frontend via Wails binding.
+//
+// Parameters:
+//   - name: Pet's name (e.g., "Max", "Whiskers")
+//   - species: Pet's species (e.g., "Dog", "Cat", "Bird")
+//   - age: Pet's age as string (will be converted to int)
+//   - gender: Pet's gender (e.g., "Male", "Female", "Unknown")
+//   - ownerName: Owner's full name
+//   - ownerPhone: Owner's phone number (used as unique identifier)
+//
+// Returns:
+//   - Pet ID if registration successful
+//   - Error if validation or database operation fails
+//
+// Example from React:
+//
+//	const petId = await RegisterPatient("Max", "Dog", "3", "Male", "John Doe", "555-1234");
+func (a *App) RegisterPatient(
+	name string,
+	species string,
+	age string,
+	gender string,
+	ownerName string,
+	ownerPhone string,
+) (int, error) {
+	// Validate inputs
+	if name == "" {
+		return 0, fmt.Errorf("pet name cannot be empty")
+	}
+	if species == "" {
+		return 0, fmt.Errorf("species cannot be empty")
+	}
+	if ownerPhone == "" {
+		return 0, fmt.Errorf("owner phone cannot be empty")
+	}
+
+	// Convert age string to integer
+	ageInt, err := strconv.Atoi(age)
 	if err != nil {
-		return "", err
+		return 0, fmt.Errorf("invalid age format: must be a number")
 	}
 
-	// Create driver instance
-	driver, err := a.driverFactory.Create(machineConfig.Type)
+	if ageInt < 0 {
+		return 0, fmt.Errorf("age cannot be negative")
+	}
+
+	// Step 1: Create or find owner
+	owner := &core.Owner{
+		Name:    ownerName,
+		Phone:   ownerPhone,
+		Address: "", // Can be added later or made optional
+	}
+
+	// Register owner via service layer
+	ownerID, err := a.labService.RegisterOwner(a.ctx, owner)
 	if err != nil {
-		return "", err
+		return 0, fmt.Errorf("failed to register owner: %w", err)
 	}
 
-	// Set configuration (type assertion depends on implementation)
-	// In a real implementation, we'd have a SetConfig method on all drivers
-	if err := driver.Connect(a.ctx); err != nil {
-		return "", err
+	// Step 2: Create pet record
+	pet := &core.Pet{
+		Name:    name,
+		Species: species,
+		Breed:   "Not specified", // Can be enhanced to accept breed parameter
+		Age:     ageInt,
+		Gender:  gender,
+		OwnerID: ownerID,
 	}
 
-	// Store active driver
-	a.activeDriversMutex.Lock()
-	a.activeDrivers[machineID] = driver
-	a.activeDriversMutex.Unlock()
-
-	// Start listening in a goroutine
-	go func() {
-		_ = driver.Listen(a.ctx, a.resultChannel)
-	}()
-
-	info, err := driver.GetMachineInfo(a.ctx)
+	// Register pet via service layer
+	petID, err := a.labService.RegisterPatient(a.ctx, pet)
 	if err != nil {
-		return "", err
+		return 0, fmt.Errorf("failed to register patient: %w", err)
 	}
 
-	return info.Status, nil
+	println(fmt.Sprintf("✅ Patient registered: %s (ID: %d), Owner: %s", name, petID, ownerName))
+	return petID, nil
 }
 
-// DisconnectMachine disconnects from a lab machine.
-func (a *App) DisconnectMachine(machineID string) error {
-	a.activeDriversMutex.Lock()
-	driver, exists := a.activeDrivers[machineID]
-	a.activeDriversMutex.Unlock()
-
-	if !exists {
-		return drivers.ErrNotConnected
-	}
-
-	if err := driver.Disconnect(a.ctx); err != nil {
-		return err
-	}
-
-	a.activeDriversMutex.Lock()
-	delete(a.activeDrivers, machineID)
-	a.activeDriversMutex.Unlock()
-
-	return nil
-}
-
-// GetMachineStatus returns the status of a connected machine.
-func (a *App) GetMachineStatus(machineID string) (map[string]interface{}, error) {
-	a.activeDriversMutex.RLock()
-	driver, exists := a.activeDrivers[machineID]
-	a.activeDriversMutex.RUnlock()
-
-	if !exists {
-		return nil, drivers.ErrNotConnected
-	}
-
-	info, err := driver.GetMachineInfo(a.ctx)
+// GetRecentPets retrieves all registered pets with their owner information.
+// This method is exposed to the React frontend for displaying patient lists.
+//
+// Returns:
+//   - Array of Pet objects
+//   - Error if database query fails
+//
+// Example from React:
+//
+//	const pets = await GetRecentPets();
+//	pets.forEach(pet => console.log(pet.name, pet.species));
+func (a *App) GetRecentPets() ([]*core.Pet, error) {
+	// Get all pets from service layer (0 means get all)
+	pets, err := a.labService.GetPetsByOwner(a.ctx, 0)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve pets: %w", err)
 	}
 
-	return map[string]interface{}{
-		"type":             info.Type,
-		"model":            info.Model,
-		"connected":        driver.IsConnected(),
-		"status":           info.Status,
-		"connectionType":   info.ConnectionType,
-		"port":             info.Port,
-		"firmwareVersion":  info.FirmwareVersion,
-		"lastTestTime":     info.LastTestTime,
-		"totalTestsRun":    info.TotalTestsRun,
-	}, nil
+	println(fmt.Sprintf("📋 Retrieved %d pets", len(pets)))
+	return pets, nil
 }
 
-// GetAllMachines returns configuration of all machines.
-func (a *App) GetAllMachines() []map[string]interface{} {
-	machines := a.configManager.GetMachines()
-	var result []map[string]interface{}
-
-	for _, m := range machines {
-		a.activeDriversMutex.RLock()
-		_, connected := a.activeDrivers[m.ID]
-		a.activeDriversMutex.RUnlock()
-
-		result = append(result, map[string]interface{}{
-			"id":             m.ID,
-			"type":           m.Type,
-			"connectionType": m.ConnectionType,
-			"port":           m.Port,
-			"enabled":        m.Enabled,
-			"connected":      connected,
-		})
-	}
-
-	return result
-}
-
-// SaveMachineConfig saves machine configuration.
-func (a *App) SaveMachineConfig(id string, connectionType string, port string, baudRate int) error {
-	machineConfig, err := a.configManager.GetMachineByID(id)
+// GetPetsByOwner retrieves all pets belonging to a specific owner.
+// Useful for filtering patient lists by owner.
+//
+// Parameters:
+//   - ownerID: The owner's database ID
+//
+// Returns:
+//   - Array of Pet objects belonging to that owner
+//   - Error if query fails
+func (a *App) GetPetsByOwner(ownerID int) ([]*core.Pet, error) {
+	pets, err := a.labService.GetPetsByOwner(a.ctx, ownerID)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to retrieve owner's pets: %w", err)
 	}
 
-	machineConfig.ConnectionType = connectionType
-	machineConfig.Port = port
-	machineConfig.BaudRate = baudRate
-
-	if err := a.configManager.UpdateMachine(id, *machineConfig); err != nil {
-		return err
-	}
-
-	return a.configManager.Save()
+	return pets, nil
 }
 
-// GetRecentResults returns recent lab results (from result channel).
-func (a *App) GetRecentResults() []*drivers.LabResult {
-	var results []*drivers.LabResult
-
-	// Non-blocking drain of result channel
-	for {
-		select {
-		case result := <-a.resultChannel:
-			results = append(results, result)
-		default:
-			return results
-		}
+// GetPetResults retrieves all lab results for a specific pet.
+// Used to display patient test history in the frontend.
+//
+// Parameters:
+//   - petID: The pet's database ID
+//
+// Returns:
+//   - Array of LabResult objects
+//   - Error if query fails
+//
+// Example from React:
+//
+//	const results = await GetPetResults(petId);
+func (a *App) GetPetResults(petID int) ([]*core.LabResult, error) {
+	if petID <= 0 {
+		return nil, fmt.Errorf("invalid pet ID")
 	}
+
+	results, err := a.labService.GetResultsByPet(a.ctx, petID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve test results: %w", err)
+	}
+
+	println(fmt.Sprintf("🔬 Retrieved %d test results for Pet ID: %d", len(results), petID))
+	return results, nil
 }
 
-// initializeReferenceRanges sets up default reference ranges for common tests.
-func (a *App) initializeReferenceRanges() {
-	// Example reference ranges for common veterinary tests
-	a.resultValidator.RegisterReferenceRange(core.ReferenceRange{
-		TestCode:    "GLU",
-		TestName:    "Glucose",
-		Unit:        "mg/dL",
-		MinValue:    70,
-		MaxValue:    100,
-		CriticalMin: 40,
-		CriticalMax: 400,
-	})
+// GetDashboardStats returns system statistics for the dashboard display.
+// Provides an overview of system activity and current state.
+//
+// Returns:
+//   - Map containing various statistics
+//   - Error if stats cannot be generated
+//
+// Example from React:
+//
+//	const stats = await GetDashboardStats();
+//	console.log(`Total Tests: ${stats.total_tests}`);
+func (a *App) GetDashboardStats() (map[string]any, error) {
+	// TODO: Implement real statistics from database queries
+	// For now, return dummy data as requested
 
-	a.resultValidator.RegisterReferenceRange(core.ReferenceRange{
-		TestCode:    "BUN",
-		TestName:    "Blood Urea Nitrogen",
-		Unit:        "mg/dL",
-		MinValue:    7,
-		MaxValue:    20,
-		CriticalMin: 1,
-		CriticalMax: 100,
-	})
+	stats := map[string]any{
+		"total_tests": 150,
+		"pending":     5,
+		"completed":   145,
+		// Additional stats that might be useful
+		"active_machines":  0,
+		"registered_pets":  0,
+		"critical_results": 0,
+	}
 
-	a.resultValidator.RegisterReferenceRange(core.ReferenceRange{
-		TestCode:    "CRE",
-		TestName:    "Creatinine",
-		Unit:        "mg/dL",
-		MinValue:    0.5,
-		MaxValue:    1.5,
-		CriticalMin: 0.1,
-		CriticalMax: 10,
-	})
+	println("📊 Dashboard stats retrieved")
+	return stats, nil
+}
+
+// ============================================================================
+// ADDITIONAL HELPER METHODS
+// ============================================================================
+
+// RegisterPatientWithBreed is an extended version that includes breed information.
+// Use this for more detailed patient registration.
+func (a *App) RegisterPatientWithBreed(
+	name string,
+	species string,
+	breed string,
+	age int,
+	gender string,
+	ownerName string,
+	ownerPhone string,
+	ownerAddress string,
+) (int, error) {
+	// Create owner
+	owner := &core.Owner{
+		Name:    ownerName,
+		Phone:   ownerPhone,
+		Address: ownerAddress,
+	}
+
+	ownerID, err := a.labService.RegisterOwner(a.ctx, owner)
+	if err != nil {
+		return 0, fmt.Errorf("failed to register owner: %w", err)
+	}
+
+	// Create pet
+	pet := &core.Pet{
+		Name:    name,
+		Species: species,
+		Breed:   breed,
+		Age:     age,
+		Gender:  gender,
+		OwnerID: ownerID,
+	}
+
+	petID, err := a.labService.RegisterPatient(a.ctx, pet)
+	if err != nil {
+		return 0, fmt.Errorf("failed to register patient: %w", err)
+	}
+
+	return petID, nil
+}
+
+// Greet returns a greeting message.
+// This is the default Wails example method - can be removed in production.
+func (a *App) Greet(name string) string {
+	return fmt.Sprintf("Hello %s, welcome to Veta LIS!", name)
 }

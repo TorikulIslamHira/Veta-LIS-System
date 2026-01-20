@@ -195,13 +195,13 @@ func (r *PetRepository) GetPetsWithOwnerInfo() ([]*PetWithOwner, error) {
 		var pet PetWithOwner
 
 		err := rows.Scan(
-			&pet.ID,
-			&pet.OwnerID,
-			&pet.Name,
-			&pet.Species,
-			&pet.Breed,
-			&pet.Age,
-			&pet.Gender,
+			&pet.Pet.ID,
+			&pet.Pet.OwnerID,
+			&pet.Pet.Name,
+			&pet.Pet.Species,
+			&pet.Pet.Breed,
+			&pet.Pet.Age,
+			&pet.Pet.Gender,
 			&pet.OwnerName,
 			&pet.OwnerPhone,
 			&pet.OwnerAddress,
