@@ -1,38 +1,45 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { MachineProvider } from './context/MachineContext';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import Dashboard from './features/dashboard/Dashboard';
+import MachinesPage from './features/machines/MachinesPage';
+import PetsPage from './features/pets/PetsPage';
+import ResultsPage from './features/results/ResultsPage';
+import SettingsPage from './features/settings/SettingsPage';
 
 export const App: React.FC = () => {
+  const [currentPage, setCurrentPage] = useState('dashboard');
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'machines':
+        return <MachinesPage />;
+      case 'pets':
+        return <PetsPage />;
+      case 'results':
+        return <ResultsPage />;
+      case 'settings':
+        return <SettingsPage />;
+      default:
+        return <Dashboard />;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-blue-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <h1 className="text-2xl font-bold">Veta LIS</h1>
-          <p className="text-blue-100">Veterinary Laboratory Information System</p>
+    <MachineProvider>
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header currentPage={currentPage} />
+          <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
+            {renderPage()}
+          </main>
         </div>
-      </nav>
-      
-      <main className="max-w-7xl mx-auto">
-        <div className="p-6 text-center">
-          <h2 className="text-3xl font-bold mb-4">Welcome to Veta LIS</h2>
-          <p className="text-gray-600 mb-8">
-            A production-grade laboratory information system for veterinary clinics.
-          </p>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="font-semibold text-lg mb-2">Dashboard</h3>
-              <p className="text-gray-600">Monitor lab machines in real-time</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="font-semibold text-lg mb-2">Settings</h3>
-              <p className="text-gray-600">Configure machine connections</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="font-semibold text-lg mb-2">Results</h3>
-              <p className="text-gray-600">View and manage test results</p>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </MachineProvider>
   );
 };
 
