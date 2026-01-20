@@ -24,7 +24,7 @@ const ResultsPage: React.FC = () => {
       id: '1',
       petName: 'Max',
       testType: 'Complete Blood Count (CBC)',
-      testDate: '2024-01-15 10:30 AM',
+      testDate: '2026-01-18 10:30 AM',
       status: 'normal',
       results: [
         { parameter: 'WBC', value: '7.5', unit: 'K/µL', referenceRange: '6.0-17.0', status: 'normal' },
@@ -37,7 +37,7 @@ const ResultsPage: React.FC = () => {
       id: '2',
       petName: 'Luna',
       testType: 'Blood Chemistry',
-      testDate: '2024-01-14 2:15 PM',
+      testDate: '2026-01-17 2:15 PM',
       status: 'abnormal',
       results: [
         { parameter: 'Glucose', value: '125', unit: 'mg/dL', referenceRange: '70-110', status: 'abnormal' },
@@ -50,7 +50,7 @@ const ResultsPage: React.FC = () => {
       id: '3',
       petName: 'Charlie',
       testType: 'Urinalysis',
-      testDate: '2024-01-12 9:00 AM',
+      testDate: '2026-01-15 9:00 AM',
       status: 'critical',
       results: [
         { parameter: 'pH', value: '8.5', unit: '', referenceRange: '5.5-7.0', status: 'critical' },

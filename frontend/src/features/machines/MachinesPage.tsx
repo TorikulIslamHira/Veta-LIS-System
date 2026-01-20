@@ -8,7 +8,6 @@ const MachinesPage: React.FC = () => {
   const { loadAllMachines, connectMachine, disconnectMachine } = useMachineControl();
   const [machines, setMachines] = useState<any[]>([]);
   const [selectedMachine, setSelectedMachine] = useState<any>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     loadMachines();
@@ -48,7 +47,7 @@ const MachinesPage: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Lab Machines</h2>
           <p className="text-gray-600 mt-1">Manage and monitor connected laboratory equipment</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>
+        <Button onClick={() => alert('Add machine feature coming soon')}>
           + Add New Machine
         </Button>
       </div>
@@ -62,7 +61,7 @@ const MachinesPage: React.FC = () => {
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">🔬</div>
                   <p className="text-gray-500 mb-4">No machines configured yet</p>
-                  <Button onClick={() => setShowAddModal(true)}>Add Your First Machine</Button>
+                  <Button onClick={() => alert('Add machine feature coming soon')}>Add Your First Machine</Button>
                 </div>
               ) : (
                 machines.map((machine) => (
@@ -90,10 +89,7 @@ const MachinesPage: React.FC = () => {
                         <StatusBadge status={machine.status || 'disconnected'} />
                         {machine.status === 'connected' ? (
                           <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDisconnect(machine.id);
-                            }}
+                            onClick={() => handleDisconnect(machine.id)}
                             variant="danger"
                             size="sm"
                           >
@@ -101,10 +97,7 @@ const MachinesPage: React.FC = () => {
                           </Button>
                         ) : (
                           <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleConnect(machine.id);
-                            }}
+                            onClick={() => handleConnect(machine.id)}
                             variant="success"
                             size="sm"
                           >

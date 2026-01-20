@@ -49,7 +49,9 @@ export const useMachineControl = () => {
   const loadAllMachines = useCallback(async () => {
     try {
       const machines = await app.GetAllMachines();
-      context.setMachines(machines);
+      if (context.setMachines && Array.isArray(machines)) {
+        context.setMachines(machines as any);
+      }
       return machines;
     } catch (error) {
       console.error('Failed to load machines:', error);

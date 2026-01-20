@@ -5,7 +5,7 @@ import StatusBadge from '../../components/StatusBadge';
 import Button from '../../components/Button';
 
 export const Dashboard: React.FC = () => {
-  const { loadAllMachines, connectMachine, disconnectMachine, getMachineStatus } = useMachineControl();
+  const { loadAllMachines, connectMachine, disconnectMachine } = useMachineControl();
   const [machines, setMachines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({

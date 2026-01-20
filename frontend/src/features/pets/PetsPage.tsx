@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
-import StatusBadge from '../../components/StatusBadge';
 
 interface Pet {
   id: string;
@@ -22,7 +21,7 @@ const PetsPage: React.FC = () => {
       breed: 'Golden Retriever',
       age: 5,
       owner: 'John Smith',
-      lastVisit: '2024-01-15',
+      lastVisit: '2026-01-18',
     },
     {
       id: '2',
@@ -31,7 +30,7 @@ const PetsPage: React.FC = () => {
       breed: 'Persian',
       age: 3,
       owner: 'Sarah Johnson',
-      lastVisit: '2024-01-14',
+      lastVisit: '2026-01-17',
     },
     {
       id: '3',
@@ -40,7 +39,7 @@ const PetsPage: React.FC = () => {
       breed: 'Labrador',
       age: 7,
       owner: 'Mike Wilson',
-      lastVisit: '2024-01-12',
+      lastVisit: '2026-01-15',
     },
   ]);
 
