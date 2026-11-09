@@ -1,3 +1,82 @@
+<div align="center">
+  
+  # 🧪 Veta LIS
+  
+  **A modular Veterinary Laboratory Information System, built with Go and Wails.**
+  
+  ![Go](https://img.shields.io/badge/Go-1.21-00ADD8?logo=go&logoColor=white) ![Wails](https://img.shields.io/badge/Wails-v2-red) ![React](https://img.shields.io/badge/React-18-20232A?logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![License](https://img.shields.io/badge/License-MIT-blue)
+  
+  </div>
+  
+  Veta LIS is a production-grade desktop application for managing veterinary laboratory operations. It connects to lab analyzers over serial (COM) and TCP/IP, parses their results, links them to pets and owners, and stores everything in PostgreSQL. A strict Clean Architecture keeps the code testable and easy to extend with new machines.
+  
+  ## 📌 Table of Contents
+  
+  [🎯 What it does](#-what-it-does) · [🧠 Architecture](#-architecture--at-a-glance) · [🛠️ Tech stack](#️-tech-stack) · [🗂️ Project status](#️-project-status) · [🧭 Design principles](#-design-principles) · [📖 Full technical documentation](#veta-lis---veterinary-laboratory-information-system)
+  
+  ## 🎯 What it does
+  
+  | Capability | Description |
+  |---|---|
+  | Analyzer integration | Receives results live from lab machines over serial and TCP/IP |
+  | Protocol parsing | Reads ASTM and HL7 (with MLLP framing) into one standard result format |
+  | Patient records | Manages pets and owners and links every result to the right pet |
+  | Result review | Shows results with reference ranges and a NORMAL / ABNORMAL / CRITICAL status |
+  | Machine dashboard | Real-time status of every configured analyzer |
+  | Easy to extend | New machine types plug in through the Adapter Pattern |
+  
+  **Supported machines:** HA3100, Scitek, Mindray (more can be added).
+  
+  ## 🧠 Architecture: at a glance
+  
+  ```
+Lab machine (Serial / TCP)
+        |
+  Driver (Listen goroutine)  ->  ParseData  ->  LabResult
+        |
+  Core business logic (validation, pet and owner services)
+        |
+  Repository layer (PostgreSQL)
+        |
+  Wails bindings  ->  React frontend (dashboard, pets, results, settings)
+```
+
+Machine communication is isolated in the `internal/drivers` package. Every analyzer implements one `MachineDriver` interface, so the rest of the application never needs to know which machine it is talking to.
+
+## 🛠️ Tech stack
+
+| Layer | Technology |
+|---|---|
+| Desktop shell | Wails v2 |
+| Frontend | React 18 (Vite), Tailwind CSS, TypeScript |
+| Backend | Go 1.21 (standard library), pgx |
+| Database | PostgreSQL (SQLite optional for local settings) |
+| Hardware | Serial (COM port) and TCP/IP |
+| Protocols | ASTM E1381, HL7 v2.5+ with MLLP |
+| Testing | `go test`, frontend tests with npm |
+
+## 🗂️ Project status
+
+| Item | Status |
+|---|---|
+| Machine driver interface and factory | ✅ Done |
+| HA3100, Scitek and Mindray drivers | ✅ Implemented |
+| Pets, owners and results repositories | ✅ Implemented |
+| React dashboard, machines, pets, results, settings | ✅ Implemented |
+| Database migrations | ⏳ To be added |
+| Role-based access control and audit logging | ⏳ Planned |
+
+## 🧭 Design principles
+
+| Principle | Meaning |
+|---|---|
+| Clean Architecture | Business logic has no dependency on the database or hardware |
+| Adapter Pattern | One interface for every machine, new analyzers without touching existing code |
+| Testable | Mock drivers can be injected for unit tests |
+| Secure by default | Secrets in environment variables, parameterized SQL queries |
+
+---
+
 # Veta LIS - Veterinary Laboratory Information System
 
 ## Project Overview
